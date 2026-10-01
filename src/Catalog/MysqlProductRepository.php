@@ -7,6 +7,7 @@ namespace Catalog\Catalog;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 
 /**
  * The local product cache. Every query is parameterised; no value from a request
@@ -48,7 +49,7 @@ final class MysqlProductRepository implements ProductStore
         $rows = $this->connection->fetchAllAssociative(
             'SELECT * FROM products WHERE title LIKE ? ORDER BY title LIMIT ? OFFSET ?',
             [$pattern, $limit, $offset],
-            [\PDO::PARAM_STR, \PDO::PARAM_INT, \PDO::PARAM_INT]
+            [ParameterType::STRING, ParameterType::INTEGER, ParameterType::INTEGER]
         );
 
         return array_map(fn (array $row): Product => $this->hydrate($row), $rows);
