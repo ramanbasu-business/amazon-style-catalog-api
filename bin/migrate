@@ -1,0 +1,68 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Catalog\Support\Config;
+use Catalog\Support\Database;
+use Dotenv\Dotenv;
+
+require __DIR__ . '/../vendor/autoload.php';
+
+$root = dirname(__DIR__);
+if (is_file($root . '/.env')) {
+    Dotenv::createImmutable($root)->safeLoad();
+}
+
+$config = Config::fromEnvironment($_ENV + $_SERVER);
+
+// The database container may still be starting when this runs under compose.
+$connection = Database::connect($config);
+for ($attempt = 1; $attempt <= 30; $attempt++) {
+    if (Database::isReachable($connection)) {
+        break;
+    }
+    if ($attempt === 30) {
+        fwrite(STDERR, "Database did not become reachable in time.\n");
+        exit(1);
+    }
+    usleep(500_000);
+}
+
+$files = glob($root . '/db/migrations/*.sql') ?: [];
+sort($files);
+
+$connection->executeStatement(
+    'CREATE TABLE IF NOT EXISTS schema_migrations ('
+    . 'filename VARCHAR(255) NOT NULL PRIMARY KEY, applied_at DATETIME NOT NULL) ENGINE = InnoDB'
+);
+
+$applied = $connection->fetchFirstColumn('SELECT filename FROM schema_migrations');
+
+foreach ($files as $file) {
+    $name = basename($file);
+    if (in_array($name, $applied, true)) {
+        continue;
+    }
+
+    $sql = file_get_contents($file);
+    if ($sql === false) {
+        fwrite(STDERR, "Could not read migration {$name}.\n");
+        exit(1);
+    }
+
+    // Statements are split on semicolons at end of line. The migrations in this
+    // project deliberately contain no stored routines, so that split is safe.
+    foreach (array_filter(array_map('trim', preg_split('/;\s*$/m', $sql) ?: [])) as $statement) {
+        $connection->executeStatement($statement);
+    }
+
+    $connection->insert('schema_migrations', [
+        'filename' => $name,
+        'applied_at' => (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s'),
+    ]);
+
+    echo "Applied {$name}\n";
+}
+
+echo "Migrations up to date.\n";

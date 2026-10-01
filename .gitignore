@@ -1,0 +1,11 @@
+/vendor/
+/var/
+.env
+.env.local
+.phpunit.result.cache
+.phpunit.cache/
+composer.lock.bak
+.DS_Store
+.idea/
+.vscode/
+nbproject/
