@@ -10,14 +10,14 @@ use RuntimeException;
 
 final class ConfigTest extends TestCase
 {
-    public function testReturnsStringValue(): void
+    public function testString_WhenSet_ReturnsValue(): void
     {
         $config = new Config(['DB_HOST' => 'db']);
 
         self::assertSame('db', $config->string('DB_HOST'));
     }
 
-    public function testFallsBackToDefaultWhenKeyIsAbsent(): void
+    public function testString_WhenKeyAbsent_ReturnsDefault(): void
     {
         $config = new Config([]);
 
@@ -25,7 +25,7 @@ final class ConfigTest extends TestCase
         self::assertSame(3306, $config->int('DB_PORT', 3306));
     }
 
-    public function testTreatsAnEmptyStringAsAbsent(): void
+    public function testString_WhenValueEmpty_TreatsAsAbsent(): void
     {
         // An unset variable in a .env file arrives as "", which must not be
         // mistaken for a deliberate empty password or a zero.
@@ -35,7 +35,7 @@ final class ConfigTest extends TestCase
         self::assertSame(3306, $config->int('DB_PORT', 3306));
     }
 
-    public function testThrowsWhenRequiredValueIsMissing(): void
+    public function testString_WhenRequiredValueMissing_Throws(): void
     {
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Missing required configuration value: API_KEY');
@@ -43,7 +43,7 @@ final class ConfigTest extends TestCase
         (new Config([]))->string('API_KEY');
     }
 
-    public function testRejectsNonIntegerValue(): void
+    public function testInt_WhenValueNotNumeric_Throws(): void
     {
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('must be an integer');
@@ -51,7 +51,7 @@ final class ConfigTest extends TestCase
         (new Config(['DB_PORT' => '3306x']))->int('DB_PORT');
     }
 
-    public function testParsesBooleanSpellings(): void
+    public function testBool_WithCommonSpellings_ParsesCorrectly(): void
     {
         $config = new Config(['A' => 'true', 'B' => '1', 'C' => 'yes', 'D' => 'false', 'E' => 'off']);
 
@@ -63,7 +63,7 @@ final class ConfigTest extends TestCase
         self::assertTrue($config->bool('MISSING', true));
     }
 
-    public function testIgnoresNonStringEnvironmentEntries(): void
+    public function testFromEnvironment_WithNonStringEntries_IgnoresThem(): void
     {
         $config = Config::fromEnvironment(['API_KEY' => 'k', 'argv' => ['a', 'b']]);
 

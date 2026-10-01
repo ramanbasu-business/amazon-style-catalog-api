@@ -34,7 +34,7 @@ final class MysqlProductRepositoryTest extends DatabaseTestCase
         );
     }
 
-    public function testSavesAndReadsBackEveryField(): void
+    public function testSave_WithAllFieldsSet_ReadsBackEveryField(): void
     {
         $this->repository->save($this->product('MP0000AAAA', 'Northwind Kettle 1200', 'SKU-123'));
 
@@ -52,7 +52,7 @@ final class MysqlProductRepositoryTest extends DatabaseTestCase
         self::assertSame('2026-10-01T12:00:00+00:00', $found->fetchedAt?->format(DATE_ATOM));
     }
 
-    public function testSavingTheSameIdTwiceUpdatesRatherThanDuplicates(): void
+    public function testSave_WithAnExistingSourceId_UpdatesRatherThanDuplicates(): void
     {
         $this->repository->save($this->product('MP0000AAAA', 'First title', 'SKU-123'));
         $this->repository->save($this->product('MP0000AAAA', 'Second title', 'SKU-123'));
@@ -64,7 +64,7 @@ final class MysqlProductRepositoryTest extends DatabaseTestCase
         );
     }
 
-    public function testFindsBySku(): void
+    public function testFindBySku_WhenMapped_ReturnsTheProduct(): void
     {
         $this->repository->save($this->product('MP0000AAAA', 'Northwind Kettle 1200', 'SKU-123'));
 
@@ -72,7 +72,7 @@ final class MysqlProductRepositoryTest extends DatabaseTestCase
         self::assertNull($this->repository->findBySku('SKU-999'));
     }
 
-    public function testStoresAProductWithNoPriceOrSku(): void
+    public function testSave_WithNoPriceOrSku_StoresNulls(): void
     {
         $bare = new Product('MP0000BBBB', 'Unpriced item');
         $this->repository->save($bare);
@@ -85,7 +85,7 @@ final class MysqlProductRepositoryTest extends DatabaseTestCase
         self::assertSame([], $found->attributes);
     }
 
-    public function testSearchMatchesPartialTitlesAndPaginates(): void
+    public function testSearchByTitle_WithPartialMatch_PaginatesResults(): void
     {
         $this->repository->save($this->product('MP0000AAAA', 'Northwind Kettle 1200'));
         $this->repository->save($this->product('MP0000BBBB', 'Northwind Kettle 1800'));
@@ -102,7 +102,7 @@ final class MysqlProductRepositoryTest extends DatabaseTestCase
         self::assertNotSame($firstPage[0]->sourceId, $secondPage[0]->sourceId);
     }
 
-    public function testWildcardInTheKeywordIsTreatedAsLiteralText(): void
+    public function testSearchByTitle_WithWildcardInKeyword_MatchesLiterally(): void
     {
         // Without escaping, a bare "%" would match every row in the table.
         $this->repository->save($this->product('MP0000AAAA', 'Northwind Kettle 1200'));
@@ -111,7 +111,7 @@ final class MysqlProductRepositoryTest extends DatabaseTestCase
         self::assertCount(0, $this->repository->searchByTitle('%', 10, 0));
     }
 
-    public function testUnicodeTitlesSurviveTheRoundTrip(): void
+    public function testSave_WithUnicodeTitle_SurvivesRoundTrip(): void
     {
         $this->repository->save($this->product('MP0000DDDD', 'Café Kettle — 1.2L'));
 
