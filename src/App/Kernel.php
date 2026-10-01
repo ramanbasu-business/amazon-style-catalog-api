@@ -4,7 +4,13 @@ declare(strict_types=1);
 
 namespace Catalog\App;
 
+use Catalog\Catalog\CatalogService;
+use Catalog\Catalog\MysqlProductRepository;
+use Catalog\Catalog\ProductStore;
 use Catalog\Http\Handler\HealthHandler;
+use Catalog\Http\Handler\ProductHandler;
+use Catalog\Source\MockMarketplace;
+use Catalog\Source\SourceAdapter;
 use Catalog\Http\Middleware\ApiKeyMiddleware;
 use Catalog\Http\Middleware\SecurityHeadersMiddleware;
 use Catalog\Http\ProblemDetailsErrorHandler;
@@ -21,6 +27,7 @@ use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Slim\App;
 use Slim\Factory\AppFactory;
+use Slim\Routing\RouteCollectorProxy;
 
 /**
  * Wires the application. Kept as one readable file rather than spread across
@@ -76,6 +83,28 @@ final class Kernel
 
                 return new Logger($c->string('APP_ENV', 'local'), [$handler]);
             },
+            ProductStore::class => fn (Connection $db): ProductStore => new MysqlProductRepository($db),
+            // The only source implementation in this repo. A real marketplace client
+            // would be bound here instead, with nothing above this line changing.
+            SourceAdapter::class => fn (Config $c, Clock $clock): SourceAdapter => new MockMarketplace(
+                clock: $clock,
+                throttleRate: $c->float('MOCK_THROTTLE_RATE', 0.0),
+                rowRejectRate: $c->float('MOCK_ROW_REJECT_RATE', 0.0),
+                jobCompleteAfterSeconds: $c->int('MOCK_JOB_COMPLETE_AFTER_SECONDS', 5),
+            ),
+            CatalogService::class => fn (
+                ProductStore $products,
+                SourceAdapter $source,
+                Clock $clock,
+                LoggerInterface $logger,
+                Config $c,
+            ): CatalogService => new CatalogService(
+                $products,
+                $source,
+                $clock,
+                $logger,
+                $c->int('PRODUCT_CACHE_TTL_SECONDS', 900),
+            ),
         ]);
 
         return $builder->build();
@@ -84,5 +113,11 @@ final class Kernel
     private static function registerRoutes(App $app): void
     {
         $app->get('/health', HealthHandler::class);
+
+        $app->group('/v1', function (RouteCollectorProxy $v1): void {
+            $v1->get('/products', [ProductHandler::class, 'search']);
+            $v1->get('/products/sku/{sku}', [ProductHandler::class, 'bySku']);
+            $v1->get('/products/{id}', [ProductHandler::class, 'byId']);
+        });
     }
 }
