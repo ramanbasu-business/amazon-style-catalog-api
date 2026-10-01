@@ -11,6 +11,16 @@
 
     <rule ref="PSR12"/>
 
+    <!--
+        Test methods are named Method_Scenario_ExpectedResult, which PSR-1's
+        camelCase rule rejects. The name is the test's documentation and reads
+        better than a camelCase run-on, so the rule is lifted for tests only;
+        production code still follows PSR-1 in full.
+    -->
+    <rule ref="PSR1.Methods.CamelCapsMethodName">
+        <exclude-pattern>tests/*</exclude-pattern>
+    </rule>
+
     <rule ref="Generic.Files.LineLength">
         <properties>
             <property name="lineLimit" value="120"/>

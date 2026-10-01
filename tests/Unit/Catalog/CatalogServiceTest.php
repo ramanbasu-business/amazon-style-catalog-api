@@ -46,7 +46,7 @@ final class CatalogServiceTest extends TestCase
         return new Product($id, $title, $sku, 'Northwind', 'Kitchen', new Money(1999, 'GBP'));
     }
 
-    public function testFreshCacheHitDoesNotCallTheSource(): void
+    public function testFindById_WhenCacheIsFresh_DoesNotCallTheSource(): void
     {
         $cached = $this->product('MP0000AAAA')->withFetchedAt($this->clock->now());
         $store = new InMemoryProductRepository([$cached]);
@@ -60,7 +60,7 @@ final class CatalogServiceTest extends TestCase
         self::assertSame(0, $store->saveCount);
     }
 
-    public function testMissFetchesFromTheSourceAndCaches(): void
+    public function testFindById_WhenNotCached_FetchesFromSourceAndCaches(): void
     {
         $store = new InMemoryProductRepository();
 
@@ -78,7 +78,7 @@ final class CatalogServiceTest extends TestCase
         self::assertNotNull($store->findBySourceId('MP0000AAAA'));
     }
 
-    public function testCacheIsRefreshedOnceItReachesTheTtl(): void
+    public function testFindById_WhenCacheReachesTtl_RefreshesFromSource(): void
     {
         $cached = $this->product('MP0000AAAA', 'Old title')->withFetchedAt($this->clock->now());
         $store = new InMemoryProductRepository([$cached]);
@@ -94,7 +94,7 @@ final class CatalogServiceTest extends TestCase
         self::assertSame('New title', $result?->title);
     }
 
-    public function testCacheIsStillFreshOneSecondBeforeTheTtl(): void
+    public function testFindById_OneSecondBeforeTtl_StillServesCache(): void
     {
         $cached = $this->product('MP0000AAAA')->withFetchedAt($this->clock->now());
         $store = new InMemoryProductRepository([$cached]);
@@ -107,7 +107,7 @@ final class CatalogServiceTest extends TestCase
         self::assertNotNull($this->service($store, $source)->findById('MP0000AAAA'));
     }
 
-    public function testStaleCopyIsServedWhenTheSourceIsThrottled(): void
+    public function testFindById_WhenSourceThrottled_ServesStaleCopy(): void
     {
         $cached = $this->product('MP0000AAAA', 'Cached title')->withFetchedAt($this->clock->now());
         $store = new InMemoryProductRepository([$cached]);
@@ -123,7 +123,7 @@ final class CatalogServiceTest extends TestCase
         self::assertSame(0, $store->saveCount);
     }
 
-    public function testSourceFailureWithNothingCachedReturnsNull(): void
+    public function testFindById_WhenSourceFailsAndNothingCached_ReturnsNull(): void
     {
         $store = new InMemoryProductRepository();
 
@@ -133,7 +133,7 @@ final class CatalogServiceTest extends TestCase
         self::assertNull($this->service($store, $source)->findById('MP0000AAAA'));
     }
 
-    public function testAnIdLookupDoesNotEraseAKnownSku(): void
+    public function testFindById_WhenSourceOmitsSku_KeepsTheKnownSku(): void
     {
         // The source returns no SKU on an id lookup. Writing that back unchanged
         // would drop the mapping an earlier SKU lookup established.
@@ -151,7 +151,7 @@ final class CatalogServiceTest extends TestCase
         self::assertSame('SKU-123', $store->findBySku('SKU-123')?->sku);
     }
 
-    public function testSearchCachesEveryResult(): void
+    public function testSearch_WithSourceResults_CachesEveryResult(): void
     {
         $store = new InMemoryProductRepository();
 
@@ -168,7 +168,7 @@ final class CatalogServiceTest extends TestCase
         self::assertNotNull($store->findBySourceId('MP0000BBBB'));
     }
 
-    public function testSearchFallsBackToCachedMatchesWhenTheSourceFails(): void
+    public function testSearch_WhenSourceFails_FallsBackToCachedMatches(): void
     {
         $store = new InMemoryProductRepository([
             $this->product('MP0000AAAA', 'Northwind Kettle 1200')->withFetchedAt($this->clock->now()),
@@ -184,7 +184,7 @@ final class CatalogServiceTest extends TestCase
         self::assertSame('Northwind Kettle 1200', $results[0]->title);
     }
 
-    public function testUnknownSourceIdLeavesTheCacheUntouched(): void
+    public function testFindById_WhenSourceReturnsNothing_LeavesCacheUntouched(): void
     {
         $store = new InMemoryProductRepository();
 
@@ -195,7 +195,7 @@ final class CatalogServiceTest extends TestCase
         self::assertSame(0, $store->saveCount);
     }
 
-    public function testBatchResultCountsAcceptedAndRejectedRows(): void
+    public function testBatchResult_WithMixedOutcomes_CountsAcceptedAndRejected(): void
     {
         $result = new BatchResult([
             new \Catalog\Source\RowOutcome(1, true),

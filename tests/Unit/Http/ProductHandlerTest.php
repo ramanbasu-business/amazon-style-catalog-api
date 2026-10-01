@@ -46,7 +46,7 @@ final class ProductHandlerTest extends AppTestCase
         ));
     }
 
-    public function testReturnsACachedProductById(): void
+    public function testGetById_WhenCached_ReturnsTheProduct(): void
     {
         $response = $this->request('GET', '/v1/products/MP0000AAAA');
 
@@ -57,7 +57,7 @@ final class ProductHandlerTest extends AppTestCase
         self::assertSame(['amount' => '19.99', 'currency' => 'GBP'], $body['price']);
     }
 
-    public function testReturnsAProductBySku(): void
+    public function testGetBySku_WhenMapped_ReturnsTheProduct(): void
     {
         $response = $this->request('GET', '/v1/products/sku/SKU-123');
 
@@ -65,7 +65,7 @@ final class ProductHandlerTest extends AppTestCase
         self::assertSame('MP0000AAAA', $this->decode($response)['id']);
     }
 
-    public function testUnknownProductIsANotFoundProblem(): void
+    public function testGetById_WhenUnknown_Returns404Problem(): void
     {
         $response = $this->request('GET', '/v1/products/NOPE999');
 
@@ -73,7 +73,7 @@ final class ProductHandlerTest extends AppTestCase
         self::assertSame('application/problem+json', $response->getHeaderLine('Content-Type'));
     }
 
-    public function testMalformedIdIsRejectedBeforeAnyLookup(): void
+    public function testGetById_WithMalformedId_Returns422BeforeLookup(): void
     {
         $response = $this->request('GET', '/v1/products/not%20a%20valid%20id!');
 
@@ -81,7 +81,7 @@ final class ProductHandlerTest extends AppTestCase
         self::assertArrayHasKey('id', $this->decode($response)['errors']);
     }
 
-    public function testSearchRequiresAKeyword(): void
+    public function testSearch_WithoutKeyword_Returns422(): void
     {
         $response = $this->request('GET', '/v1/products');
 
@@ -89,7 +89,7 @@ final class ProductHandlerTest extends AppTestCase
         self::assertArrayHasKey('q', $this->decode($response)['errors']);
     }
 
-    public function testSearchRejectsAnOversizedLimit(): void
+    public function testSearch_WithOversizedLimit_Returns422(): void
     {
         $response = $this->request('GET', '/v1/products?q=kettle&limit=5000');
 
@@ -97,7 +97,7 @@ final class ProductHandlerTest extends AppTestCase
         self::assertArrayHasKey('limit', $this->decode($response)['errors']);
     }
 
-    public function testSearchRejectsANonNumericOffset(): void
+    public function testSearch_WithNonNumericOffset_Returns422(): void
     {
         $response = $this->request('GET', '/v1/products?q=kettle&offset=abc');
 
@@ -105,7 +105,7 @@ final class ProductHandlerTest extends AppTestCase
         self::assertArrayHasKey('offset', $this->decode($response)['errors']);
     }
 
-    public function testSearchReturnsResultsAndCachesThem(): void
+    public function testSearch_WithKeyword_ReturnsResultsAndCachesThem(): void
     {
         $response = $this->request('GET', '/v1/products?q=kettle&limit=5');
 

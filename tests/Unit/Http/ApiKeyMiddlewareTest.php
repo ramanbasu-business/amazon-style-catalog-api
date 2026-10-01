@@ -19,7 +19,7 @@ final class ApiKeyMiddlewareTest extends AppTestCase
         $this->override(Connection::class, $connection);
     }
 
-    public function testHealthIsServedWithoutAKey(): void
+    public function testHealth_WithoutApiKey_IsServed(): void
     {
         $this->withReachableDatabase();
 
@@ -29,7 +29,7 @@ final class ApiKeyMiddlewareTest extends AppTestCase
         self::assertSame('ok', $this->decode($response)['status']);
     }
 
-    public function testProtectedPathRejectsAMissingKey(): void
+    public function testProtectedPath_WithoutApiKey_Returns401(): void
     {
         $response = $this->request('GET', '/v1/products/X1', headers: []);
 
@@ -41,14 +41,14 @@ final class ApiKeyMiddlewareTest extends AppTestCase
         self::assertSame(401, $body['status']);
     }
 
-    public function testProtectedPathRejectsAWrongKey(): void
+    public function testProtectedPath_WithWrongApiKey_Returns401(): void
     {
         $response = $this->request('GET', '/v1/products/X1', headers: ['X-Api-Key' => 'not-the-key']);
 
         self::assertSame(401, $response->getStatusCode());
     }
 
-    public function testUnknownRouteWithAValidKeyIsANotFoundProblem(): void
+    public function testUnknownRoute_WithValidApiKey_Returns404Problem(): void
     {
         // Authentication runs before routing, so a 404 here proves the key was
         // accepted rather than the route merely being absent.
@@ -58,7 +58,7 @@ final class ApiKeyMiddlewareTest extends AppTestCase
         self::assertSame('Not Found', $this->decode($response)['title']);
     }
 
-    public function testSecurityHeadersArePresentOnEveryResponse(): void
+    public function testAnyResponse_Always_CarriesSecurityHeaders(): void
     {
         $response = $this->request('GET', '/v1/nothing-here');
 
@@ -68,7 +68,7 @@ final class ApiKeyMiddlewareTest extends AppTestCase
         self::assertSame('no-store', $response->getHeaderLine('Cache-Control'));
     }
 
-    public function testDatabaseFailureMakesHealthDegraded(): void
+    public function testHealth_WhenDatabaseUnreachable_ReportsDegraded(): void
     {
         $connection = $this->createMock(Connection::class);
         $connection->method('executeQuery')->willThrowException(new \RuntimeException('connection refused'));
