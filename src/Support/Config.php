@@ -17,7 +17,12 @@ final class Config
     {
     }
 
-    /** @param array<string, string> $env */
+    /**
+     * $_ENV and $_SERVER hold more than strings (argv, for one). Anything that is
+     * not a string is dropped rather than coerced.
+     *
+     * @param array<string, mixed> $env
+     */
     public static function fromEnvironment(array $env): self
     {
         $values = [];

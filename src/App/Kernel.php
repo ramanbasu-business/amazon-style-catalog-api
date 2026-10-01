@@ -35,6 +35,7 @@ use Slim\Routing\RouteCollectorProxy;
  */
 final class Kernel
 {
+    /** @return App<ContainerInterface|null> */
     public static function createApp(Config $config, ?ContainerInterface $container = null): App
     {
         $container ??= self::createContainer($config);
@@ -110,6 +111,7 @@ final class Kernel
         return $builder->build();
     }
 
+    /** @param App<ContainerInterface|null> $app */
     private static function registerRoutes(App $app): void
     {
         $app->get('/health', HealthHandler::class);

@@ -25,8 +25,14 @@ final class ProductHandlerTest extends AppTestCase
         parent::setUp();
 
         $this->store = new InMemoryProductRepository([
-            (new Product('MP0000AAAA', 'Northwind Kettle 1200', 'SKU-123', 'Northwind', 'Kitchen', new Money(1999, 'GBP')))
-                ->withFetchedAt($this->clock->now()),
+            (new Product(
+                'MP0000AAAA',
+                'Northwind Kettle 1200',
+                'SKU-123',
+                'Northwind',
+                'Kitchen',
+                new Money(1999, 'GBP'),
+            ))->withFetchedAt($this->clock->now()),
         ]);
 
         $this->override(ProductStore::class, fn (): ProductStore => $this->store);
