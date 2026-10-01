@@ -9,11 +9,14 @@ use Catalog\Catalog\MysqlProductRepository;
 use Catalog\Catalog\ProductStore;
 use Catalog\Http\Handler\HealthHandler;
 use Catalog\Http\Handler\ProductHandler;
-use Catalog\Source\MockMarketplace;
-use Catalog\Source\SourceAdapter;
 use Catalog\Http\Middleware\ApiKeyMiddleware;
 use Catalog\Http\Middleware\SecurityHeadersMiddleware;
 use Catalog\Http\ProblemDetailsErrorHandler;
+use Catalog\RateLimit\RateLimiter;
+use Catalog\RateLimit\TokenBucket;
+use Catalog\Source\MockMarketplace;
+use Catalog\Source\RateLimitedSource;
+use Catalog\Source\SourceAdapter;
 use Catalog\Support\Clock;
 use Catalog\Support\Config;
 use Catalog\Support\Database;
@@ -87,11 +90,24 @@ final class Kernel
             ProductStore::class => fn (Connection $db): ProductStore => new MysqlProductRepository($db),
             // The only source implementation in this repo. A real marketplace client
             // would be bound here instead, with nothing above this line changing.
-            SourceAdapter::class => fn (Config $c, Clock $clock): SourceAdapter => new MockMarketplace(
-                clock: $clock,
-                throttleRate: $c->float('MOCK_THROTTLE_RATE', 0.0),
-                rowRejectRate: $c->float('MOCK_ROW_REJECT_RATE', 0.0),
-                jobCompleteAfterSeconds: $c->int('MOCK_JOB_COMPLETE_AFTER_SECONDS', 5),
+            RateLimiter::class => fn (Connection $db, Clock $clock, Config $c): RateLimiter => new TokenBucket(
+                $db,
+                $clock,
+                burst: $c->float('SOURCE_RATE_BURST', 10),
+                refillPerSecond: $c->float('SOURCE_RATE_REFILL_PER_SECOND', 2),
+            ),
+            SourceAdapter::class => fn (
+                Config $c,
+                Clock $clock,
+                RateLimiter $limiter,
+            ): SourceAdapter => new RateLimitedSource(
+                new MockMarketplace(
+                    clock: $clock,
+                    throttleRate: $c->float('MOCK_THROTTLE_RATE', 0.0),
+                    rowRejectRate: $c->float('MOCK_ROW_REJECT_RATE', 0.0),
+                    jobCompleteAfterSeconds: $c->int('MOCK_JOB_COMPLETE_AFTER_SECONDS', 5),
+                ),
+                $limiter,
             ),
             CatalogService::class => fn (
                 ProductStore $products,
