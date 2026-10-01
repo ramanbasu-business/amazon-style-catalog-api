@@ -74,12 +74,12 @@ jobs:
   security:
     name: Security
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # gitleaks needs the full history to scan past commits, not just the tip.
+          fetch-depth: 0
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
@@ -94,11 +94,17 @@ jobs:
       - name: Audit dependencies
         run: composer audit --no-dev --locked
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+      # CodeQL has no PHP analyzer, so static security scanning is Semgrep's
+      # PHP and security-audit rule sets instead. See docs/adr/0005.
+      - name: Static security analysis
+        uses: semgrep/semgrep-action@v1
         with:
-          languages: php
-          queries: security-and-quality
+          config: >-
+            p/php
+            p/security-audit
+            p/secrets
 
-      - name: Run CodeQL
-        uses: github/codeql-action/analyze@v3
+      - name: Scan history for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
